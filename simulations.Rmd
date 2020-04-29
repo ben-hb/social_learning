@@ -18,6 +18,8 @@ knitr::opts_chunk$set(echo = FALSE)
 # b correlates with state B 
 # o correlates symmetrically with A and B
 
+# pi is the prior that state = A
+
 ```
 
 ```{r functions}
@@ -30,25 +32,6 @@ init_matrix <- function(iterations, herd_length){
   return(temp_matrix)
   
 }
-
-for (state in c("a", "b")){
-  for (matrix_type in c("signal", "posterior", "decision")){
-  assign(paste(matrix_type, "matrix", state, sep = "_"), init_matrix(iterations, herd_length))
-  }
-}
-
-  
-  
-  # Data structures for simulations where state = i
-  signal_matrix_a <- matrix(0, iterations, herd_length)
-  posterior_matrix_a <- matrix(0, iterations, herd_length)
-  decision_matrix_a <- matrix(0, iterations, herd_length)
-  
-  # Data structures for simulations where state = B
-  signal_matrix_b <- matrix(0, iterations, herd_length)
-  posterior_matrix_b <- matrix(0, iterations, herd_length)
-  decision_matrix_b <- matrix(0, iterations, herd_length)
-
 
 # Assign i.i.d signals to signal_matrix 
 
@@ -70,14 +53,20 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state){
 # P(signal = a | state = B) = 1 - P(signal = o | state = B) - P(signal = b | state = B)
                              ifelse(state == "B", beta * eta, 1 - eta - alpha * eta),
                              eta))
-  signal_matrix <- matrix(signals, nrow(signal_matrix), ncol(signal_matrix))
+  return(matrix(signals, nrow(signal_matrix), ncol(signal_matrix)))
 }
 
+# Input a decision history and output a posterior
 
-infer <- function(posterior_matrix, decision_matrix){
-  
+infer <- function(signal_matrix, decision_matrix){
+  return(ifelse(signal_matrix[, 1] == "a", alpha * eta, 
+                                  ifelse(signal_matrix[, 1] == "b", 1 - eta - alpha * eta, eta)) * pi / 
+    ((ifelse(signal_matrix[, 1] == "a", alpha * eta, 
+                ifelse(signal_matrix[, 1] == "b", 1 - eta - alpha * eta, eta)) * pi) + 
+          ifelse(signal_matrix[, 1] == "a", 1 - eta - beta * eta, 
+                 ifelse(signal_matrix[, 1] == "b", beta * eta, eta)) * (1 - pi)))
+
 }
-
 
 # Input a posterior and output a decision
 
@@ -87,6 +76,39 @@ decide <- function(posterior_matrix, decision_matrix){
 
 
 ```
+
+
+```{r simulate}
+
+# Initialize matrices
+
+iterations = 1000
+herd_length = 15
+eta = 0.5
+alpha = 0.7
+beta = 0.6
+pi = 0.5
+
+for (state in c("a", "b")){
+  for (matrix_type in c("signal", "posterior", "decision")){
+  assign(paste(matrix_type, "matrix", state, sep = "_"), init_matrix(iterations, herd_length))
+  }
+}
+
+# Assign signals 
+
+for (state in c("a", "b")){
+  assign(paste("signal_matrix", state, sep = "_"), gen_signals(signal_matrix_a, eta, alpha, beta, state))
+}
+
+# Infer column 1 
+
+posterior_matrix_a[,1] <- infer(signal_matrix_a, decision_matrix_a)
+posterior_matrix_b[,1] <- infer(signal_matrix_b, decision_matrix_b)
+
+```
+
+
 
 ```{r test}
 
