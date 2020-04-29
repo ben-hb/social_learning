@@ -1,0 +1,56 @@
+---
+title: "testsimulation"
+author: "Asher Spector"
+date: "4/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Model
+
+WLOG let's let restaurant $A$ be better than restaurant $B$. Let $S_i$ be the signal received by the $i$th person, where $S_i = 1$ indicates that restaurant $A$ is better. Let $X_i$ be the behavior of the $i$th person.
+
+For person $i$, suppose they see person $i-1$ and they make the following decision:
+$$X_i \sim Bern\left(\frac{S_i + X_{i-1}}{2} \right) $$
+
+```{r}
+
+make_decision_general <- function(signals, previous, prior=1){
+  # Infer how many replications we're doing
+  reps <- length(signals)
+  # Calculate parameters
+  probs <- (signals + previous + prior)/(prior + 2)
+  random_unifs <- stats::runif(reps)
+  random_binomials <- (random_unifs <= probs)
+  return(random_binomials)
+  
+}
+
+
+simulate_people <- function(decision_fn, npeeps=5, signal_prob=0.7, reps=100, ...){
+  
+  # Initialize our array to hold decisions
+  decisions <- matrix(0, npeeps, reps) # Matrix that is npeeps x reps 
+  
+  # Sample all of our signals at once bc they're independent
+  signals <- stats::rbinom(n=npeeps*reps, prob=signal_prob, size=1)
+  signals <- matrix(signals, npeeps, reps) # Matrix that is npeeps x reps
+
+  # Initialize: first decision = signal
+  decisions[1,] <- signals[1,]
+  
+  for (j in 2:npeeps){
+    # Make the decision for person j
+    decisions[j,] <- make_decision_general(signals[j,], decisions[j-1,], ...)
+  }
+  return(decisions[npeeps,])
+}
+
+results <- simulate_people(make_decision_v1,prior=10,signal_prob=0.3,npeeps=100,reps=10000)
+
+print(mean(results))
+```
+

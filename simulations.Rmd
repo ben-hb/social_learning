@@ -1,0 +1,34 @@
+---
+title: "Simulations"
+author: "Benjamin Hoffner-Brodsky"
+date: "4/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+
+# Generate Starting Matrices
+
+prepare <- function(iterations, herd_length){
+  
+  # Data structures for simulations where state = A
+  signal_matrix_a <- matrix(NULL, iterations, herd_length)
+  posterior_matrix_a <- matrix(NULL, iterations, herd_length)
+  decision_matrix_a <- matrix(NULL, iteractions, herd_length)
+  
+  # Data structures for simulations where state = B
+  signal_matrix_b <- matrix(NULL, iterations, herd_length)
+  posterior_matrix_b <- matrix(NULL, iterations, herd_length)
+  decision_matrix_b <- matrix(NULL, iteractions, herd_length)
+}
+
+# Assign i.i.d signals to signal_matrix 
+# Eta is the probability of generating null
+
+gen_signals <- function(signal_matrix, eta)
+```
+

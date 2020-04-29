@@ -1,0 +1,56 @@
+---
+title: "Simulations"
+author: "Benjamin Hoffner-Brodsky"
+date: "4/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+
+possible_signals <- c(0, 1)
+signal_probs <- c(0.3, 0.7)
+
+group_size <- 10
+reps <- 1000000
+prior <- 0.5
+
+# Naive learning model in which people act off of the average of their signal
+# plus the actions of others
+
+infer <- function(signals, decisions, index){
+  reps <- length(signals)
+  prob <- (signals + decisions + prior) / (prior + index - 1) 
+  unifs <- runif(reps)
+  binoms <- (unifs <= prob)
+  return(binoms)
+}
+
+decide <- function(group_size, reps, possible_signals, signal_probs) {
+  
+  # Intialize matrix to hold decisions
+  decisions <- matrix(0, group_size, reps)
+  
+  # Generate independent signals for each participant
+  signals <- sample(possible_signals, size = group_size * reps,
+                    replace = TRUE, prob = signal_probs)
+  signals <- matrix(signals, group_size, reps)
+  
+  # First decision is purely determined by the individual's signal
+  decisions[1,] <- signals[1,]
+  
+  # Make further decisions by inferring signals
+  for (i in 2:group_size){
+    decisions[i,] <- infer(signals[i,], decisions[i - 1,], i)
+  }
+  
+  return(decisions[group_size,])
+}
+
+results <- decide(group_size, reps, possible_signals, signal_probs)
+mean(results)
+```
+
