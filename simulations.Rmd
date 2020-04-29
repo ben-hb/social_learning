@@ -20,22 +20,35 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```
 
-```{r}
+```{r functions}
 
 # Generate Starting Matrices
 
-prepare <- function(iterations, herd_length){
+init_matrix <- function(iterations, herd_length){
   
-  # Data structures for simulations where state = A
+  temp_matrix <- matrix(0, iterations, herd_length)
+  return(temp_matrix)
+  
+}
+
+for (state in c("a", "b")){
+  for (matrix_type in c("signal", "posterior", "decision")){
+  assign(paste(matrix_type, "matrix", state, sep = "_"), init_matrix(iterations, herd_length))
+  }
+}
+
+  
+  
+  # Data structures for simulations where state = i
   signal_matrix_a <- matrix(0, iterations, herd_length)
   posterior_matrix_a <- matrix(0, iterations, herd_length)
-  decision_matrix_a <- matrix(0, iteractions, herd_length)
+  decision_matrix_a <- matrix(0, iterations, herd_length)
   
   # Data structures for simulations where state = B
   signal_matrix_b <- matrix(0, iterations, herd_length)
   posterior_matrix_b <- matrix(0, iterations, herd_length)
-  decision_matrix_b <- matrix(0, iteractions, herd_length)
-}
+  decision_matrix_b <- matrix(0, iterations, herd_length)
+
 
 # Assign i.i.d signals to signal_matrix 
 
@@ -72,6 +85,12 @@ decide <- function(posterior_matrix, decision_matrix){
   
 }
 
+
+```
+
+```{r test}
+
+prepare(iterations = 10, herd_length = 5)
 
 ```
 
