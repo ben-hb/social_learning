@@ -7,6 +7,17 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+
+# Definitions
+
+# There are two states, A and B 
+# Exactly one is true/right 
+
+# Agents receive a discrete signal
+# a correlates with state A
+# b correlates with state B 
+# o correlates symmetrically with A and B
+
 ```
 
 ```{r}
@@ -16,19 +27,51 @@ knitr::opts_chunk$set(echo = FALSE)
 prepare <- function(iterations, herd_length){
   
   # Data structures for simulations where state = A
-  signal_matrix_a <- matrix(NULL, iterations, herd_length)
-  posterior_matrix_a <- matrix(NULL, iterations, herd_length)
-  decision_matrix_a <- matrix(NULL, iteractions, herd_length)
+  signal_matrix_a <- matrix(0, iterations, herd_length)
+  posterior_matrix_a <- matrix(0, iterations, herd_length)
+  decision_matrix_a <- matrix(0, iteractions, herd_length)
   
   # Data structures for simulations where state = B
-  signal_matrix_b <- matrix(NULL, iterations, herd_length)
-  posterior_matrix_b <- matrix(NULL, iterations, herd_length)
-  decision_matrix_b <- matrix(NULL, iteractions, herd_length)
+  signal_matrix_b <- matrix(0, iterations, herd_length)
+  posterior_matrix_b <- matrix(0, iterations, herd_length)
+  decision_matrix_b <- matrix(0, iteractions, herd_length)
 }
 
 # Assign i.i.d signals to signal_matrix 
-# Eta is the probability of generating null
 
-gen_signals <- function(signal_matrix, eta)
+# eta is the symmetric probability of generating null 
+# P(signal = o | state = A) = P(signal = o | state = B) = eta
+
+# alpha is the power of signal a to predict state A
+# P(signal = a | state = A) = alpha * eta 
+
+# beta is the power of signal b to predict state B 
+# P(signal = b | state = B) = beta * eta
+
+# Loop over state 
+
+gen_signals <- function(signal_matrix, eta, alpha, beta, state){
+  signals <- sample(c("a", "b", "o"), size = length(signal_matrix), replace = TRUE, 
+# P(signal = b | state = A) = 1 - P(signal = 0 | state = A) - P(signal = a | state = A)
+                    prob = c(ifelse(state == "A", alpha * eta, 1 - eta - beta * eta),
+# P(signal = a | state = B) = 1 - P(signal = o | state = B) - P(signal = b | state = B)
+                             ifelse(state == "B", beta * eta, 1 - eta - alpha * eta),
+                             eta))
+  signal_matrix <- matrix(signals, nrow(signal_matrix), ncol(signal_matrix))
+}
+
+
+infer <- function(posterior_matrix, decision_matrix){
+  
+}
+
+
+# Input a posterior and output a decision
+
+decide <- function(posterior_matrix, decision_matrix){
+  
+}
+
+
 ```
 
