@@ -52,43 +52,48 @@ init_matrix <- function(iterations, herd_length){
 gen_signals <- function(signal_matrix, eta, alpha, beta, state){
   signals <- sample(c("a", "b", "o"), size = length(signal_matrix), replace = TRUE, 
 # P(signal = b | state = A) = 1 - P(signal = 0 | state = A) - P(signal = a | state = A)
-                    prob = c(ifelse(state == "A", alpha * eta, 1 - eta - beta * eta),
+                    prob = c(ifelse(state == "a", alpha * eta, 1 - eta - beta * eta),
 # P(signal = a | state = B) = 1 - P(signal = o | state = B) - P(signal = b | state = B)
-                             ifelse(state == "B", beta * eta, 1 - eta - alpha * eta),
+                             ifelse(state == "b", beta * eta, 1 - eta - alpha * eta),
                              eta))
   return(matrix(signals, nrow(signal_matrix), ncol(signal_matrix)))
 }
 
 # Input a decision history and output a posterior
 
-infer_on_signal <- function(signal_matrix, decision_matrix, generation){
-  return(ifelse(signal_matrix[, generation] == "a", alpha * eta, 
-                                  ifelse(signal_matrix[, generation] == "b", 1 - eta - alpha * eta, eta)) * pi / 
-    ((ifelse(signal_matrix[, generation] == "a", alpha * eta, 
-                ifelse(signal_matrix[, generation] == "b", 1 - eta - alpha * eta, eta)) * pi) + 
-          ifelse(signal_matrix[, generation] == "a", 1 - eta - beta * eta, 
-                 ifelse(signal_matrix[, generation] == "b", beta * eta, eta)) * (1 - pi)))
-
+infer_on_signal <- function(signal_matrix, decision_matrix, prior, generation){
+    
+  if (generation > 1) {
+    prior <- as.numeric(prior[c(match(decision_matrix[, generation], prior)), 4])
+  }
+    posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
+    posterior_with_signal_b <- (1 - eta - alpha * eta) * prior / (((1 - eta - alpha * eta) * prior) + beta * eta * (1 - prior))
+    posterior_with_signal_null <- prior
+    posterior <- ifelse(signal_matrix[, generation] == "a", posterior_with_signal_a,
+                        ifelse(signal_matrix[, generation] == "b", posterior_with_signal_b,
+                               posterior_with_signal_null))
+    return(posterior)
+    
 }
 
 # Create action posterior matrix
 
-infer_on_actions <- function(decision_summary_df_a, decision_summary_df_b, pi){
+infer_on_actions <- function(decision_summary_df_a, decision_summary_df_b, prior, generation){
   temp_matrix <- matrix(0, nrow(decision_summary_df_a), 3)
   temp_matrix[, 1] <- decision_summary_df_a[, 2]
   temp_matrix[, 2] <- decision_summary_df_b[, 2]
-  temp_matrix[, 3] <- (pi * temp_matrix[, 1]) / (pi * temp_matrix[, 1] + (1 - pi) * temp_matrix[, 2])
+  temp_matrix[, 3] <- (prior * temp_matrix[, 1]) / (prior * temp_matrix[, 1] + (1 - prior) * temp_matrix[, 2])
   temp_matrix <- cbind(levels(decision_summary_df_a[, 1]), temp_matrix)
   return(temp_matrix)
 }
 
 # Input a posterior and output a decision
 
-decide <- function(posterior_matrix, signal_matrix){
-  decisions <- ifelse(posterior_matrix[, 1] > 0.5, "A", 
-                                ifelse(posterior_matrix[, 1] < 0.5, "B",
-                                       ifelse(signal_matrix[, 1] == "a", "A",
-                                              ifelse(signal_matrix[, 1] == "b", "B",
+decide <- function(posterior_matrix, signal_matrix, generation){
+  decisions <- ifelse(posterior_matrix[, generation] > 0.5, "A", 
+                                ifelse(posterior_matrix[, generation] < 0.5, "B",
+                                       ifelse(signal_matrix[, generation] == "a", "A",
+                                              ifelse(signal_matrix[, generation] == "b", "B",
                                                      sample(c("A", "B"), 
                                                             replace = TRUE, 
                                                             prob = c(0.5, 0.5))))))
@@ -105,9 +110,9 @@ decide <- function(posterior_matrix, signal_matrix){
 matrix_types <- c("signal", "posterior", "decision")
 iterations <- 100000
 herd_length <- 2
-eta <- 0.5
+eta <- 0.3
 alpha <- 0.7
-beta <- 0.6
+beta <- 0.7
 pi <- 0.5
 states <- c("a", "b") 
 
@@ -131,29 +136,88 @@ for (state in states){
   assign(paste("signal_matrix", state, sep = "_"), gen_signals(signal_matrix_a, eta, alpha, beta, state))
 }
 
-```
+# Initialize list of decision summary data frames
 
-```{r loop}
+decision_summary_a_dfs <- list()
+decision_summary_b_dfs <- list()
 
-for (generation in 1:herd_length){
+for (generation in 1:herd_length) {
   
-# Status report
-  print(paste0("Simulating generation #", generation))
+  decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- data.frame(NULL)
+  decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- data.frame(NULL)
   
-# Generate posterior with signal 
+}
 
-posterior_matrix_a[, generation] <- infer_on_signal(signal_matrix_a, decision_matrix_a, generation)
-posterior_matrix_b[, generation] <- infer_on_signal(signal_matrix_b, decision_matrix_b, generation)
+# Initialize a list of action posterior matrices
+
+action_posterior_matrices <- list()
+
+for (generation in 1:herd_length) {
+  
+  action_posterior_matrices[[paste("action_posterior_matrix", generation, sep = "_")]] <- data.frame(NULL)
   
 }
 
 ```
 
+```{r loop}
+
+for (generation in 1:herd_length) {
+  
+# Status report
+  print(paste0("Simulating generation #", generation))
+  
+# Generate posterior with signal 
+  
+  if (generation == 1) {
+    
+    posterior_matrix_a[, generation] <- infer_on_signal(signal_matrix_a, decision_matrix_a, pi, generation)
+    posterior_matrix_b[, generation] <- infer_on_signal(signal_matrix_b, decision_matrix_b, pi, generation)
+    
+  }
+  
+  else {
+    
+# Generate posteriors from action posterior matrix with signal
+  
+  posterior_matrix_a[, generation] <- infer_on_signal(signal_matrix_a, decision_matrix_a, 
+                                             action_posterior_matrices[[paste("action_posterior_matrix", 
+                                                                              generation, sep = "_")]],
+                                             generation)
+  
+  posterior_matrix_b[, generation] <- infer_on_signal(signal_matrix_b, decision_matrix_b, 
+                                             action_posterior_matrices[[paste("action_posterior_matrix", 
+                                                                              generation, sep = "_")]],
+                                             generation)
+  }
+  
+# Decide
+  
+  decision_matrix_a[, generation] <- decide(posterior_matrix_a, signal_matrix_a, generation)
+  decision_matrix_b[, generation] <- decide(posterior_matrix_b, signal_matrix_b, generation)
+  
+# Generate decision summary data frames
+  
+  decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
+    as.data.frame(table(decision_matrix_a[, generation]))
+  
+  decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
+    as.data.frame(table(decision_matrix_b[, generation]))
+  
+# Infer posteriors from decision summary tables without signal
+
+  action_posterior_matrices[[paste("action_posterior_matrix", generation, sep = "_")]] <- 
+    infer_on_actions(decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]], 
+                     decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]],
+                     pi, generation)
+  
+
+
+}
+
+```
+
 ```{r simulate}
-
-
-
-
 
 # Infer column 1 
 
