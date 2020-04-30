@@ -63,10 +63,15 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state){
 
 infer_on_signal <- function(signal_matrix, decision_matrix, prior, generation){
     
-  # Only run once in the loop
+# Only run once in the loop
   
   if (generation > 1) {
-    prior <- as.numeric(prior[c(match(decision_matrix[, generation - 1], prior)), 4])
+    
+# Need to temporarily concatenate observed decisions in order to match with
+# action posterior matrix
+    
+    decision_matrix <- matrix(apply(format(decision_matrix), 1, paste, collapse = ""), iterations, 1)
+    prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
   }
   
     posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
@@ -187,8 +192,16 @@ for (generation in 1:herd_length) {
   temp_decision_a <- decide(posterior_matrix_a, signal_matrix_a, generation)
   temp_decision_b <- decide(posterior_matrix_b, signal_matrix_b, generation)
   
-  decision_matrix_a <- cbind(decision_matrix_a, temp_decision_a)
-  decision_matrix_b <- cbind(decision_matrix_b, temp_decision_b)
+  if (generation == 1) {
+    decision_matrix_a <- as.matrix(temp_decision_a)
+    decision_matrix_b <- as.matrix(temp_decision_b)
+  }
+  
+  else {
+    decision_matrix_a <- cbind(decision_matrix_a, temp_decision_a)
+    decision_matrix_b <- cbind(decision_matrix_b, temp_decision_b)
+  }
+  
 
   # decision_matrix_a[, generation] <- decide(posterior_matrix_a, signal_matrix_a, generation)
   # decision_matrix_b[, generation] <- decide(posterior_matrix_b, signal_matrix_b, generation)
@@ -218,9 +231,6 @@ for (generation in 1:herd_length) {
     decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
     as.data.frame(table(decision_matrix_b[, generation]))
   }
-  
-
-
   
 # Infer posteriors from decision summary tables without signal
 
