@@ -116,12 +116,12 @@ decide <- function(posterior_matrix, signal_matrix, generation){
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 100000
-herd_length <- 4
+iterations <- 1000000
+herd_length <- 20
 eta <- 0.3
-alpha <- 0.7
+alpha <- 0.6
 beta <- 0.7
-pi <- 0.5
+pi <- 0.4
 states <- c("a", "b") 
 
 # Generates vectors of names of matrices for loops
@@ -257,6 +257,10 @@ for (generation in 1:herd_length) {
 
 ```
 
+```{r display}
+
+print(action_posterior_matrices)
+```
 
 
 
