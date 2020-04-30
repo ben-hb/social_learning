@@ -63,9 +63,12 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state){
 
 infer_on_signal <- function(signal_matrix, decision_matrix, prior, generation){
     
+  # Only run once in the loop
+  
   if (generation > 1) {
-    prior <- as.numeric(prior[c(match(decision_matrix[, generation], prior)), 4])
+    prior <- as.numeric(prior[c(match(decision_matrix[, generation - 1], prior)), 4])
   }
+  
     posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
     posterior_with_signal_b <- (1 - eta - alpha * eta) * prior / (((1 - eta - alpha * eta) * prior) + beta * eta * (1 - prior))
     posterior_with_signal_null <- prior
@@ -107,9 +110,9 @@ decide <- function(posterior_matrix, signal_matrix, generation){
 
 # Set parameters
 
-matrix_types <- c("signal", "posterior", "decision")
+matrix_types <- c("posterior")
 iterations <- 100000
-herd_length <- 2
+herd_length <- 4
 eta <- 0.3
 alpha <- 0.7
 beta <- 0.7
@@ -126,9 +129,15 @@ for (matrix_type in matrix_types){
 
 for (state in states){
   for (matrix_type in matrix_types){
-    assign(paste(matrix_type, "matrix", state, sep = "_"), init_matrix(iterations, herd_length))
+    assign(paste(matrix_type, "matrix", state, sep = "_"), init_matrix(iterations, herd_length + 1))
   }
 }
+
+signal_matrix_a <- init_matrix(iterations, herd_length + 1)
+signal_matrix_b <- init_matrix(iterations, herd_length + 1)
+
+decision_matrix_a <- init_matrix(iterations, 1)
+decision_matrix_b <- init_matrix(iterations, 1)
 
 # Assign signals 
 
@@ -162,47 +171,56 @@ for (generation in 1:herd_length) {
 
 ```{r loop}
 
+# For the special case in which there are no prior actions to consider
+# Generating posterior for generation 1 solely after observing their own signal
+
+posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a, pi, 1)
+posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b, pi, 1)
+
 for (generation in 1:herd_length) {
   
 # Status report
   print(paste0("Simulating generation #", generation))
   
-# Generate posterior with signal 
-  
-  if (generation == 1) {
-    
-    posterior_matrix_a[, generation] <- infer_on_signal(signal_matrix_a, decision_matrix_a, pi, generation)
-    posterior_matrix_b[, generation] <- infer_on_signal(signal_matrix_b, decision_matrix_b, pi, generation)
-    
-  }
-  
-  else {
-    
-# Generate posteriors from action posterior matrix with signal
-  
-  posterior_matrix_a[, generation] <- infer_on_signal(signal_matrix_a, decision_matrix_a, 
-                                             action_posterior_matrices[[paste("action_posterior_matrix", 
-                                                                              generation, sep = "_")]],
-                                             generation)
-  
-  posterior_matrix_b[, generation] <- infer_on_signal(signal_matrix_b, decision_matrix_b, 
-                                             action_posterior_matrices[[paste("action_posterior_matrix", 
-                                                                              generation, sep = "_")]],
-                                             generation)
-  }
-  
 # Decide
   
-  decision_matrix_a[, generation] <- decide(posterior_matrix_a, signal_matrix_a, generation)
-  decision_matrix_b[, generation] <- decide(posterior_matrix_b, signal_matrix_b, generation)
+  temp_decision_a <- decide(posterior_matrix_a, signal_matrix_a, generation)
+  temp_decision_b <- decide(posterior_matrix_b, signal_matrix_b, generation)
+  
+  decision_matrix_a <- cbind(decision_matrix_a, temp_decision_a)
+  decision_matrix_b <- cbind(decision_matrix_b, temp_decision_b)
+
+  # decision_matrix_a[, generation] <- decide(posterior_matrix_a, signal_matrix_a, generation)
+  # decision_matrix_b[, generation] <- decide(posterior_matrix_b, signal_matrix_b, generation)
+  
+# Starting with generation 2, concatenate decisions into permutation string
+  
+  if (generation > 1) {
+    cat_decision_matrix_a <- matrix(apply(format(decision_matrix_a), 1, paste, collapse = ""), iterations, 1)
+    cat_decision_matrix_b <- matrix(apply(format(decision_matrix_b), 1, paste, collapse = ""), iterations, 1)
+    
+# Generate decision summary data frames
+    
+    decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
+    as.data.frame(table(cat_decision_matrix_a))
+  
+    decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
+    as.data.frame(table(cat_decision_matrix_b))
+    
+  }
   
 # Generate decision summary data frames
   
-  decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
+  else {
+    decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
     as.data.frame(table(decision_matrix_a[, generation]))
   
-  decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
+    decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
     as.data.frame(table(decision_matrix_b[, generation]))
+  }
+  
+
+
   
 # Infer posteriors from decision summary tables without signal
 
@@ -211,66 +229,23 @@ for (generation in 1:herd_length) {
                      decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]],
                      pi, generation)
   
+# Generate posteriors from action posterior matrix with signal
+  
+  posterior_matrix_a[, generation + 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a, 
+                                             action_posterior_matrices[[paste("action_posterior_matrix", 
+                                                                              generation, sep = "_")]],
+                                             generation + 1)
+  
+  posterior_matrix_b[, generation + 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b, 
+                                             action_posterior_matrices[[paste("action_posterior_matrix", 
+                                                                              generation, sep = "_")]],
+                                             generation + 1)
+  
 
 
 }
 
 ```
-
-```{r simulate}
-
-# Infer column 1 
-
-posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a)
-posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b)
-
-# Decide column 1 
-
-decision_matrix_a[, 1] <- decide(posterior_matrix_a, signal_matrix_a)
-decision_matrix_b[, 1] <- decide(posterior_matrix_b, signal_matrix_b)
-
-# Generate decision summary data frames for column 1
-
-decision_summary_df_1_a <- as.data.frame(table(decision_matrix_a[, 1]))
-decision_summary_df_1_b <- as.data.frame(table(decision_matrix_b[, 1]))
-
-# Infer posteriors from decision summary tables 
-
-action_posterior_matrix_1 <- infer_on_actions(decision_summary_df_1_a, decision_summary_df_1_b, pi)
-
-# Generate posterior in column 2 of posterior_matrix 
-
-posterior_without_signal_a <- as.numeric(action_posterior_matrix_1[c(match(decision_matrix_a[, 1], action_posterior_matrix_1)), 4])
-
-posterior_with_signal_a_a <- alpha * eta * posterior_without_signal_a / 
-  (alpha * eta * posterior_without_signal_a + (1 - eta - beta * eta) * (1 - posterior_without_signal_a))
-
-posterior_with_signal_b_a <- (1 - eta - alpha * eta) * posterior_without_signal_a / 
-  (((1 - eta - alpha * eta) * posterior_without_signal_a) + beta * eta * (1 - posterior_without_signal_a))
-
-posterior_matrix_a[, 2] <- ifelse(signal_matrix_a[, 2] == "a", posterior_with_signal_a_a,
-                                  ifelse(signal_matrix_a[, 2] == "b", posterior_with_signal_b_a,
-                                  posterior_without_signal_a))
-
-# b
-
-posterior_without_signal_b <- as.numeric(action_posterior_matrix_1[c(match(decision_matrix_b[, 1], action_posterior_matrix_1)), 4])
-
-posterior_with_signal_a_b <- alpha * eta * posterior_without_signal_b / 
-  (alpha * eta * posterior_without_signal_b + (1 - eta - beta * eta) * (1 - posterior_without_signal_b))
-
-posterior_with_signal_b_b <- (1 - eta - alpha * eta) * posterior_without_signal_b / 
-  (((1 - eta - alpha * eta) * posterior_without_signal_b) + beta * eta * (1 - posterior_without_signal_b))
-
-posterior_matrix_b[, 2] <- ifelse(signal_matrix_b[, 2] == "a", posterior_with_signal_a_b,
-                                  ifelse(signal_matrix_b[, 2] == "b", posterior_with_signal_b_b,
-                                  posterior_without_signal_b))
-
-# Decide for column 2 
-
-
-```
-
 
 
 
