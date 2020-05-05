@@ -29,7 +29,7 @@ options(mc.cores = parallel::detectCores())
 
 # Generate Starting Matrices
 
-init_matrix <- function(iterations, herd_length){
+init_matrix <- function(iterations, herd_length) {
   
   temp_matrix <- matrix(0, iterations, herd_length)
   return(temp_matrix)
@@ -49,7 +49,7 @@ init_matrix <- function(iterations, herd_length){
 
 # Loop over state 
 
-gen_signals <- function(signal_matrix, eta, alpha, beta, state){
+gen_signals <- function(signal_matrix, eta, alpha, beta, state) {
   signals <- sample(c("a", "b", "o"), size = length(signal_matrix), replace = TRUE, 
 # P(signal = b | state = A) = 1 - P(signal = 0 | state = A) - P(signal = a | state = A)
                     prob = c(ifelse(state == "a", alpha * eta, 1 - eta - beta * eta),
@@ -59,55 +59,76 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state){
   return(matrix(signals, nrow(signal_matrix), ncol(signal_matrix)))
 }
 
-# Input a decision history and output a posterior
+# Infer belief state = A before observing new signal 
 
-infer_on_signal <- function(signal_matrix, decision_matrix, prior, generation){
-    
-# Only run once in the loop
-  
-  if (generation > 1) {
-    
-# Need to temporarily concatenate observed decisions in order to match with
-# action posterior matrix
-    
-    decision_matrix <- matrix(apply(format(decision_matrix), 1, paste, collapse = ""), iterations, 1)
-    prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
-  }
-  
-    posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
-    posterior_with_signal_b <- (1 - eta - alpha * eta) * prior / (((1 - eta - alpha * eta) * prior) + beta * eta * (1 - prior))
-    posterior_with_signal_null <- prior
-    posterior <- ifelse(signal_matrix[, generation] == "a", posterior_with_signal_a,
-                        ifelse(signal_matrix[, generation] == "b", posterior_with_signal_b,
-                               posterior_with_signal_null))
-    return(posterior)
-    
+infer_prior <- function(decision_matrix, prior, generation) {
+  decision_matrix <- matrix(apply(format(decision_matrix), 1, paste, collapse = ""), iterations, 1)
+  prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
+  return(prior)
 }
 
+# Infer belief state = A if signal = a
+
+infer_if_a <- function(prior) {
+  posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
+  return(posterior_with_signal_a)
+}
+
+# Infer belief state = A if signal = b
+
+infer_if_b <- function(prior) {
+  posterior_with_signal_b <- (1 - eta - alpha * eta) * prior / (((1 - eta - alpha * eta) * prior) + beta * eta * (1 - prior))
+  return(posterior_with_signal_b)
+}
+
+# Input a decision history and output a posterior
+
+infer_on_signal <- function(signal_matrix, prior, posterior_with_signal_a, posterior_with_signal_b, generation) {
+  posterior <- ifelse(signal_matrix[, generation] == "a", posterior_with_signal_a,
+                        ifelse(signal_matrix[, generation] == "b", posterior_with_signal_b,
+                               prior))
+  return(posterior)
+}
+
+track_herd <- function(posterior_with_signal_a, posterior_with_signal_b, generation) {
+
+# Check which iterations have herded
+
+# If the last action was X and a signal of x would cause the next agent to take
+# an action other than X, the iteration has herded
+
+# Else, the iteration has not herded
+    
+  decisions_if_a <- decide(posterior_with_signal_a, c(rep("a", times = iterations)))
+  decisions_if_b <- decide(posterior_with_signal_b, c(rep("b", times = iterations)))
+
+  return(decisions_if_a == decisions_if_b)
+  
+}
+    
 # Create action posterior matrix
 
 infer_on_actions <- function(decision_summary_df_a, decision_summary_df_b, prior, generation){
-  temp_matrix <- matrix(0, nrow(decision_summary_df_a), 3)
-  temp_matrix[, 1] <- decision_summary_df_a[, 2]
-  temp_matrix[, 2] <- decision_summary_df_b[, 2]
-  temp_matrix[, 3] <- (prior * temp_matrix[, 1]) / (prior * temp_matrix[, 1] + (1 - prior) * temp_matrix[, 2])
-  temp_matrix <- cbind(levels(decision_summary_df_a[, 1]), temp_matrix)
+  temp_df <- dplyr::full_join(x = decision_summary_df_a, y = decision_summary_df_b, 
+                       by = c("cat_decision_matrix_a" = "cat_decision_matrix_b"))
+  temp_df[is.na(temp_df)] <- 0
+  posterior <- (prior * temp_df$Freq.x) / (prior * temp_df$Freq.x + (1 - prior) * temp_df$Freq.y)
+  temp_matrix <- as.matrix(cbind(temp_df, posterior))
   return(temp_matrix)
 }
 
 # Input a posterior and output a decision
 
-decide <- function(posterior_matrix, signal_matrix, generation){
-  decisions <- ifelse(posterior_matrix[, generation] > 0.5, "A", 
-                                ifelse(posterior_matrix[, generation] < 0.5, "B",
-                                       ifelse(signal_matrix[, generation] == "a", "A",
-                                              ifelse(signal_matrix[, generation] == "b", "B",
+decide <- function(posterior_column, signal_column){
+  decisions <- ifelse(posterior_column > 0.5, "A", 
+                                ifelse(posterior_column < 0.5, "B",
+                                       ifelse(signal_column == "a", "A",
+                                              ifelse(signal_column == "b", "B",
                                                      sample(c("A", "B"), 
                                                             replace = TRUE, 
                                                             prob = c(0.5, 0.5))))))
   return(decisions)
 }
-
 
 ```
 
@@ -116,8 +137,8 @@ decide <- function(posterior_matrix, signal_matrix, generation){
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 1000000
-herd_length <- 20
+iterations <- 10000
+herd_length <- 10
 eta <- 0.3
 alpha <- 0.6
 beta <- 0.7
@@ -172,6 +193,23 @@ for (generation in 1:herd_length) {
   
 }
 
+# Initialize a vector indicating which iterations have herded
+# TRUE indicates that the generation has herded, FALSE indicates that it has not
+
+herd_tracker_a_vectors <- list()
+herd_tracker_b_vectors <- list()
+
+for (generation in 1:herd_length) {
+  herd_tracker_a_vectors[[paste("herd_tracker_a_vector", generation, sep = "_")]] <- c(rep(NA, times = iterations))
+  herd_tracker_b_vectors[[paste("herd_tracker_b_vector", generation, sep = "_")]] <- c(rep(NA, times = iterations))
+}
+
+# Initialize a time tracking data frame 
+
+# run_time_df <- data.frame(generation = character(), run_time = character())
+
+# run_time_matrix <- matrix()
+
 ```
 
 ```{r loop}
@@ -179,18 +217,46 @@ for (generation in 1:herd_length) {
 # For the special case in which there are no prior actions to consider
 # Generating posterior for generation 1 solely after observing their own signal
 
-posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a, pi, 1)
-posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b, pi, 1)
+# Calculate beliefs conditional on receiving signal a or b 
+  
+posterior_with_signal_a_a <- infer_if_a(pi)
+posterior_with_signal_b_a <- infer_if_b(pi)
+
+posterior_with_signal_a_b <- infer_if_a(pi)
+posterior_with_signal_b_b <- infer_if_b(pi)
+
+# Generate posteriors from action posterior matrix with signal
+  
+posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, pi, posterior_with_signal_a_a,
+                                                          posterior_with_signal_b_a, 1)
+  
+posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, pi, posterior_with_signal_a_b,
+                                                          posterior_with_signal_b_b, 1)
+
+# Check which iterations have herded
+  
+herd_tracker_a_vectors[[1]] <- track_herd(posterior_with_signal_a_a, posterior_with_signal_b_a, 1)
+herd_tracker_b_vectors[[1]] <- track_herd(posterior_with_signal_a_b, posterior_with_signal_b_b, 1)
+
+# posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a, pi, generation = 1)
+# posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b, pi, generation = 1)
+
+start_time <- Sys.time()
 
 for (generation in 1:herd_length) {
+  
+# Begin generation timer 
+  
+  # run_time_matrix[generation, 1] <- generation
+  # run_time_matrix[generation, 2] <- Sys.time()
   
 # Status report
   print(paste0("Simulating generation #", generation))
   
 # Decide
   
-  temp_decision_a <- decide(posterior_matrix_a, signal_matrix_a, generation)
-  temp_decision_b <- decide(posterior_matrix_b, signal_matrix_b, generation)
+  temp_decision_a <- decide(posterior_matrix_a[, generation], signal_matrix_a[, generation])
+  temp_decision_b <- decide(posterior_matrix_b[, generation], signal_matrix_b[, generation])
   
   if (generation == 1) {
     decision_matrix_a <- as.matrix(temp_decision_a)
@@ -202,35 +268,25 @@ for (generation in 1:herd_length) {
     decision_matrix_b <- cbind(decision_matrix_b, temp_decision_b)
   }
   
-
-  # decision_matrix_a[, generation] <- decide(posterior_matrix_a, signal_matrix_a, generation)
-  # decision_matrix_b[, generation] <- decide(posterior_matrix_b, signal_matrix_b, generation)
-  
 # Starting with generation 2, concatenate decisions into permutation string
   
-  if (generation > 1) {
+  # if (generation > 1) {
     cat_decision_matrix_a <- matrix(apply(format(decision_matrix_a), 1, paste, collapse = ""), iterations, 1)
     cat_decision_matrix_b <- matrix(apply(format(decision_matrix_b), 1, paste, collapse = ""), iterations, 1)
     
 # Generate decision summary data frames
     
     decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
-    as.data.frame(table(cat_decision_matrix_a))
-  
-    decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
-    as.data.frame(table(cat_decision_matrix_b))
+      as.data.frame(table(cat_decision_matrix_a))
     
-  }
-  
-# Generate decision summary data frames
-  
-  else {
-    decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]] <- 
-    as.data.frame(table(decision_matrix_a[, generation]))
+    decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]]$cat_decision_matrix_a <- 
+      as.character(decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]]$cat_decision_matrix_a)
   
     decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
-    as.data.frame(table(decision_matrix_b[, generation]))
-  }
+      as.data.frame(table(cat_decision_matrix_b))
+    
+      decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b <- 
+    as.character(decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b)
   
 # Infer posteriors from decision summary tables without signal
 
@@ -238,22 +294,48 @@ for (generation in 1:herd_length) {
     infer_on_actions(decision_summary_a_dfs[[paste("decision_summary_a_df", generation, sep = "_")]], 
                      decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]],
                      pi, generation)
+
+# Calculate belief that state = A before observing new signal 
+  
+  prior_a <- infer_prior(decision_matrix_a, action_posterior_matrices[[generation]], generation)
+  prior_b <- infer_prior(decision_matrix_b, action_posterior_matrices[[generation]], generation)
+  
+# Calculate beliefs conditional on receiving signal a or b 
+  
+  posterior_with_signal_a_a <- infer_if_a(prior_a)
+  posterior_with_signal_b_a <- infer_if_b(prior_a)
+  
+  posterior_with_signal_a_b <- infer_if_a(prior_b)
+  posterior_with_signal_b_b <- infer_if_b(prior_b)
   
 # Generate posteriors from action posterior matrix with signal
   
-  posterior_matrix_a[, generation + 1] <- infer_on_signal(signal_matrix_a, decision_matrix_a, 
-                                             action_posterior_matrices[[paste("action_posterior_matrix", 
-                                                                              generation, sep = "_")]],
-                                             generation + 1)
+  posterior_matrix_a[, generation + 1] <- infer_on_signal(signal_matrix_a, prior_a, posterior_with_signal_a_a,
+                                                          posterior_with_signal_b_a, generation + 1)
   
-  posterior_matrix_b[, generation + 1] <- infer_on_signal(signal_matrix_b, decision_matrix_b, 
-                                             action_posterior_matrices[[paste("action_posterior_matrix", 
-                                                                              generation, sep = "_")]],
-                                             generation + 1)
+  posterior_matrix_b[, generation + 1] <- infer_on_signal(signal_matrix_b, prior_b, posterior_with_signal_a_b,
+                                                          posterior_with_signal_b_b, generation + 1)
   
-
-
+# Check which iterations have herded
+  
+  herd_tracker_a_vectors[[generation + 1]] <- track_herd(posterior_with_signal_a_a, posterior_with_signal_b_a, generation)
+  herd_tracker_b_vectors[[generation + 1]] <- track_herd(posterior_with_signal_a_b, posterior_with_signal_b_b, generation)
+  
+# End generation timer and log 
+  
+  # end_time <- Sys.time()
+  # time_elapsed <- as.character(end_time - start_time)
+  # temp <- c(paste("Generation", as.character(generation), sep = " "), time_elapsed)
+  # 
+  # run_time_df <- rbind(run_time_df, temp)
+  
+  # run_time_matrix[generation, 3] <- Sys.time()
 }
+
+# run_time_matrix[, 4] <- run_time_matrix[, 3] - run_time_matrix[, 2]
+
+end_time <- Sys.time()
+print(paste0("Run time for ", iterations, " iterations and a herd length of ", herd_length, ": ", round(end_time - start_time, 3), " seconds"))
 
 ```
 
