@@ -137,11 +137,11 @@ decide <- function(posterior_column, signal_column){
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 10000
-herd_length <- 10
-eta <- 0.3
-alpha <- 0.6
-beta <- 0.7
+iterations <- 500000
+herd_length <- 20
+eta <- 0.4
+alpha <- 0.8
+beta <- 0.4
 pi <- 0.4
 states <- c("a", "b") 
 
@@ -339,9 +339,21 @@ print(paste0("Run time for ", iterations, " iterations and a herd length of ", h
 
 ```
 
-```{r display}
+```{r output}
+library(writexl)
+write.xlsx(action_posterior_matrices, "sample\ simulation/action_posterior_matrices.xlsx")
+write.xlsx(decision_matrix_a, "sample\ simulation/decision_matrix_a.xlsx")
+write.xlsx(decision_matrix_b, "sample\ simulation/decision_matrix_b.xlsx")
+write.xlsx(decision_summary_a_dfs, "sample\ simulation/decision_summary_a_dfs.xlsx")
+write.xlsx(decision_summary_b_dfs, "sample\ simulation/decision_summary_b_dfs.xlsx")
+write.xlsx(herd_tracker_a_vectors, "sample\ simulation/herd_tracker_a_vectors.xlsx")
+write.xlsx(herd_tracker_b_vectors, "sample\ simulation/herd_tracker_b_vectors.xlsx")
+write.xlsx(posterior_matrix_a, "sample\ simulation/posterior_matrix_a.xlsx")
+write.xlsx(posterior_matrix_b, "sample\ simulation/posterior_matrix_b.xlsx")
+write.xlsx(signal_matrix_a, "sample\ simulation/signal_matrix_a.xlsx")
+write.xlsx(signal_matrix_b, "sample\ simulation/signal_matrix_b.xlsx")
 
-print(action_posterior_matrices)
+
 ```
 
 
