@@ -70,14 +70,29 @@ infer_prior <- function(decision_matrix, prior, generation) {
 # Infer belief state = A if signal = a
 
 infer_if_a <- function(prior) {
-  posterior_with_signal_a <- alpha * eta * prior / (alpha * eta * prior + (1 - eta - beta * eta) * (1 - prior))
+  
+# Added a special exception for when prior is 0 or 1, such that if eta or alpha
+# is 0 the inference function won't throw an error for dividing by 0
+  
+  posterior_with_signal_a <- ifelse(prior == 1, 1,
+                                  ifelse(prior == 0, 0,
+                                         alpha * (1 - eta) * prior / (alpha * (1 - eta) * prior + 
+                                                                        (1 - eta - beta * (1 - eta)) * (1 - prior))))
+  
   return(posterior_with_signal_a)
 }
 
 # Infer belief state = A if signal = b
 
+# Added a special exception for when prior is 0 or 1, such that if eta or beta
+# is 0 the inference function won't throw an error for dividing by 0
+
 infer_if_b <- function(prior) {
-  posterior_with_signal_b <- (1 - eta - alpha * eta) * prior / (((1 - eta - alpha * eta) * prior) + beta * eta * (1 - prior))
+  posterior_with_signal_b <- ifelse(prior == 1, 1,
+                                    ifelse(prior == 0, 0,
+                                    (1 - (1 - eta) - alpha * (1 - eta)) * prior / 
+                                      (((1 - (1 - eta) - alpha * (1 - eta)) * prior) + beta * (1 - eta) * (1 - prior))))
+    
   return(posterior_with_signal_b)
 }
 
@@ -132,18 +147,39 @@ decide <- function(posterior_column, signal_column){
 
 ```
 
-```{r prep_for_loop}
+
+```{r loop}
 
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 500000
-herd_length <- 20
+iterations <- 1000
+herd_length <- 100
 eta <- 0.4
-alpha <- 0.8
+# alpha <- 0.8
 beta <- 0.4
 pi <- 0.4
 states <- c("a", "b") 
+
+# Parameter ranges
+
+alpha_range <- seq(from = 0, to = 1, by = 0.05)
+beta_range <- seq(from = 0, to = 1, by = 0.05)
+
+temp_NAs <- rep(NA, times = length(alpha_range) * length(beta_range))
+
+correct_herd_rate <- matrix(data = NA, nrow = length(beta_range), ncol = length(alpha_range))
+
+correct_herd_rate_a <- data.frame(correct_herd_rate)
+correct_herd_rate_b <- data.frame(correct_herd_rate)
+
+row.names(correct_herd_rate_a) <- beta_range
+row.names(correct_herd_rate_b) <- beta_range
+
+colnames(correct_herd_rate_a) <- alpha_range
+colnames(correct_herd_rate_b) <- alpha_range
+
+for (alpha in alpha_range) {
 
 # Generates vectors of names of matrices for loops
 
@@ -209,10 +245,6 @@ for (generation in 1:herd_length) {
 # run_time_df <- data.frame(generation = character(), run_time = character())
 
 # run_time_matrix <- matrix()
-
-```
-
-```{r loop}
 
 # For the special case in which there are no prior actions to consider
 # Generating posterior for generation 1 solely after observing their own signal
@@ -330,7 +362,16 @@ for (generation in 1:herd_length) {
   # run_time_df <- rbind(run_time_df, temp)
   
   # run_time_matrix[generation, 3] <- Sys.time()
+  
+  if (sum(herd_tracker_a_vectors[[generation + 1]]) + sum(herd_tracker_b_vectors[[generation + 1]]) == 2 * iterations) {
+    print(paste("All iterations have herded after ", generation, " generations. Ending simulation."))
+    correct_herd_rate[as.character(beta), as.character(alpha)] <- sum(decision_matrix_a[, generation] == "A") / iterations
+    break
+  }
 }
+
+}
+
 
 # run_time_matrix[, 4] <- run_time_matrix[, 3] - run_time_matrix[, 2]
 
