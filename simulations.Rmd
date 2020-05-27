@@ -63,6 +63,12 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state) {
 
 infer_prior <- function(decision_matrix, prior, generation) {
   decision_matrix <- matrix(apply(format(decision_matrix), 1, paste, collapse = ""), iterations, 1)
+  
+  if (order == FALSE) {
+    decision_matrix <- vapply(strsplit(decision_matrix, NULL), function(x) paste(sort(x), collapse = ''), '')
+    decision_matrix <- matrix(decision_matrix)
+  }
+  
   prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
   return(prior)
 }
@@ -154,17 +160,43 @@ decide <- function(posterior_column, signal_column){
 
 matrix_types <- c("posterior")
 iterations <- 1000
-herd_length <- 100
-eta <- 0.4
-# alpha <- 0.8
+herd_length <- 200
+eta <- 0
+alpha <- 0.8
 beta <- 0.4
 pi <- 0.4
 states <- c("a", "b") 
 
+# Should order be considered?
+
+order <- FALSE
+
 # Parameter ranges
 
-alpha_range <- seq(from = 0, to = 1, by = 0.05)
-beta_range <- seq(from = 0, to = 1, by = 0.05)
+alpha_range <- c(seq(from = 0.01, to = 0.09, by = 0.01),
+                 seq(from = 0.1, to = 0.9, by = 0.05),
+                 seq(from = 0.91, to = 0.99, by = 0.01))
+  
+beta_range <- c(seq(from = 0.01, to = 0.09, by = 0.01),
+                 seq(from = 0.1, to = 0.9, by = 0.05),
+                 seq(from = 0.91, to = 0.99, by = 0.01))
+  
+# Check that parameter ranges satisfy conditions
+
+# Condition 1: P(state = A | signal = a) >= P(state = A | signal = b)
+# Condition 2: P(state = B | signal = b) >= P(state = B | signal = a)
+
+# P(state = A | signal = a)
+
+# paa <- alpha_range * pi / (alpha_range * pi + (1 - beta_range) * (1 - pi))
+# 
+# # P(state = A | signal = b)
+# 
+# pab <- (1 - alpha_range) * pi / (1 - alpha_range) * pi + beta_range * (1 - pi)
+# 
+# # Condition 1: P(state = A | signal = a) >= P(state = A | signal = b)
+# 
+# paa >= pab
 
 temp_NAs <- rep(NA, times = length(alpha_range) * length(beta_range))
 
@@ -179,6 +211,8 @@ row.names(correct_herd_rate_b) <- beta_range
 colnames(correct_herd_rate_a) <- alpha_range
 colnames(correct_herd_rate_b) <- alpha_range
 
+for (beta in beta_range) {
+  
 for (alpha in alpha_range) {
 
 # Generates vectors of names of matrices for loops
@@ -303,8 +337,18 @@ for (generation in 1:herd_length) {
 # Starting with generation 2, concatenate decisions into permutation string
   
   # if (generation > 1) {
+
     cat_decision_matrix_a <- matrix(apply(format(decision_matrix_a), 1, paste, collapse = ""), iterations, 1)
     cat_decision_matrix_b <- matrix(apply(format(decision_matrix_b), 1, paste, collapse = ""), iterations, 1)
+  
+  if (order == FALSE) {
+    cat_decision_matrix_a <- vapply(strsplit(cat_decision_matrix_a, NULL), function(x) paste(sort(x), collapse = ''), '')
+    cat_decision_matrix_b <- vapply(strsplit(cat_decision_matrix_b, NULL), function(x) paste(sort(x), collapse = ''), '')
+    
+    cat_decision_matrix_a <- matrix(cat_decision_matrix_a)
+    cat_decision_matrix_b <- matrix(cat_decision_matrix_b)
+
+  }
     
 # Generate decision summary data frames
     
@@ -317,8 +361,8 @@ for (generation in 1:herd_length) {
     decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]] <- 
       as.data.frame(table(cat_decision_matrix_b))
     
-      decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b <- 
-    as.character(decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b)
+    decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b <- 
+      as.character(decision_summary_b_dfs[[paste("decision_summary_b_df", generation, sep = "_")]]$cat_decision_matrix_b)
   
 # Infer posteriors from decision summary tables without signal
 
@@ -363,16 +407,17 @@ for (generation in 1:herd_length) {
   
   # run_time_matrix[generation, 3] <- Sys.time()
   
-  if (sum(herd_tracker_a_vectors[[generation + 1]]) + sum(herd_tracker_b_vectors[[generation + 1]]) == 2 * iterations) {
+  if (sum(herd_tracker_a_vectors[[generation + 1]]) + sum(herd_tracker_b_vectors[[generation + 1]]) >= 2 * 99 * iterations / 100) {
     print(paste("All iterations have herded after ", generation, " generations. Ending simulation."))
-    correct_herd_rate[as.character(beta), as.character(alpha)] <- sum(decision_matrix_a[, generation] == "A") / iterations
+    correct_herd_rate_a[as.character(beta), as.character(alpha)] <- sum(decision_matrix_a[, generation] == "A") / iterations
+    correct_herd_rate_b[as.character(beta), as.character(alpha)] <- sum(decision_matrix_b[, generation] == "B") / iterations
     break
   }
 }
 
 }
 
-
+}
 # run_time_matrix[, 4] <- run_time_matrix[, 3] - run_time_matrix[, 2]
 
 end_time <- Sys.time()
@@ -381,18 +426,23 @@ print(paste0("Run time for ", iterations, " iterations and a herd length of ", h
 ```
 
 ```{r output}
-library(writexl)
-write.xlsx(action_posterior_matrices, "sample\ simulation/action_posterior_matrices.xlsx")
-write.xlsx(decision_matrix_a, "sample\ simulation/decision_matrix_a.xlsx")
-write.xlsx(decision_matrix_b, "sample\ simulation/decision_matrix_b.xlsx")
-write.xlsx(decision_summary_a_dfs, "sample\ simulation/decision_summary_a_dfs.xlsx")
-write.xlsx(decision_summary_b_dfs, "sample\ simulation/decision_summary_b_dfs.xlsx")
-write.xlsx(herd_tracker_a_vectors, "sample\ simulation/herd_tracker_a_vectors.xlsx")
-write.xlsx(herd_tracker_b_vectors, "sample\ simulation/herd_tracker_b_vectors.xlsx")
-write.xlsx(posterior_matrix_a, "sample\ simulation/posterior_matrix_a.xlsx")
-write.xlsx(posterior_matrix_b, "sample\ simulation/posterior_matrix_b.xlsx")
-write.xlsx(signal_matrix_a, "sample\ simulation/signal_matrix_a.xlsx")
-write.xlsx(signal_matrix_b, "sample\ simulation/signal_matrix_b.xlsx")
+
+library(xlsx)
+
+write.xlsx(correct_herd_rate_unordered_a, "sample\ simulation/correct_herd_rate_a.xlsx")
+write.xlsx(correct_herd_rate_unordered_b, "sample\ simulation/correct_herd_rate_b.xlsx")
+
+# write.xlsx(action_posterior_matrices, "sample\ simulation/action_posterior_matrices.xlsx")
+# write.xlsx(decision_matrix_a, "sample\ simulation/decision_matrix_a.xlsx")
+# write.xlsx(decision_matrix_b, "sample\ simulation/decision_matrix_b.xlsx")
+# write.xlsx(decision_summary_a_dfs, "sample\ simulation/decision_summary_a_dfs.xlsx")
+# write.xlsx(decision_summary_b_dfs, "sample\ simulation/decision_summary_b_dfs.xlsx")
+# write.xlsx(herd_tracker_a_vectors, "sample\ simulation/herd_tracker_a_vectors.xlsx")
+# write.xlsx(herd_tracker_b_vectors, "sample\ simulation/herd_tracker_b_vectors.xlsx")
+# write.xlsx(posterior_matrix_a, "sample\ simulation/posterior_matrix_a.xlsx")
+# write.xlsx(posterior_matrix_b, "sample\ simulation/posterior_matrix_b.xlsx")
+# write.xlsx(signal_matrix_a, "sample\ simulation/signal_matrix_a.xlsx")
+# write.xlsx(signal_matrix_b, "sample\ simulation/signal_matrix_b.xlsx")
 
 
 ```
