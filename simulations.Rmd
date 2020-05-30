@@ -164,12 +164,17 @@ herd_length <- 200
 eta <- 0
 alpha <- 0.8
 beta <- 0.4
-pi <- 0.4
+pi <- 0.1
 states <- c("a", "b") 
+
+# if FALSE, agents observe all actions before them 
+# if an integer, each agent only observes the last n actions
+
+memory_length <- FALSE
 
 # Should order be considered?
 
-order <- FALSE
+order <- TRUE
 
 # Parameter ranges
 
@@ -318,7 +323,7 @@ for (generation in 1:herd_length) {
   
 # Status report
   print(paste0("Simulating generation #", generation))
-  
+
 # Decide
   
   temp_decision_a <- decide(posterior_matrix_a[, generation], signal_matrix_a[, generation])
@@ -429,8 +434,8 @@ print(paste0("Run time for ", iterations, " iterations and a herd length of ", h
 
 library(xlsx)
 
-write.xlsx(correct_herd_rate_unordered_a, "sample\ simulation/correct_herd_rate_a.xlsx")
-write.xlsx(correct_herd_rate_unordered_b, "sample\ simulation/correct_herd_rate_b.xlsx")
+write.xlsx(correct_herd_rate_a, "sample\ simulation/correct_herd_rate_unordered_0.1_a.xlsx")
+write.xlsx(correct_herd_rate_b, "sample\ simulation/correct_herd_rate_unordered_0.1_b.xlsx")
 
 # write.xlsx(action_posterior_matrices, "sample\ simulation/action_posterior_matrices.xlsx")
 # write.xlsx(decision_matrix_a, "sample\ simulation/decision_matrix_a.xlsx")
