@@ -1,0 +1,16 @@
+library(xlsx)
+
+write.xlsx(correct_herd_rate_a, "sample\ simulation/correct_herd_rate_unordered_0.1_a.xlsx")
+write.xlsx(correct_herd_rate_b, "sample\ simulation/correct_herd_rate_unordered_0.1_b.xlsx")
+
+# write.xlsx(action_posterior_matrices, "sample\ simulation/action_posterior_matrices.xlsx")
+# write.xlsx(decision_matrix_a, "sample\ simulation/decision_matrix_a.xlsx")
+# write.xlsx(decision_matrix_b, "sample\ simulation/decision_matrix_b.xlsx")
+# write.xlsx(decision_summary_a_dfs, "sample\ simulation/decision_summary_a_dfs.xlsx")
+# write.xlsx(decision_summary_b_dfs, "sample\ simulation/decision_summary_b_dfs.xlsx")
+# write.xlsx(herd_tracker_a_vectors, "sample\ simulation/herd_tracker_a_vectors.xlsx")
+# write.xlsx(herd_tracker_b_vectors, "sample\ simulation/herd_tracker_b_vectors.xlsx")
+# write.xlsx(posterior_matrix_a, "sample\ simulation/posterior_matrix_a.xlsx")
+# write.xlsx(posterior_matrix_b, "sample\ simulation/posterior_matrix_b.xlsx")
+# write.xlsx(signal_matrix_a, "sample\ simulation/signal_matrix_a.xlsx")
+# write.xlsx(signal_matrix_b, "sample\ simulation/signal_matrix_b.xlsx")
