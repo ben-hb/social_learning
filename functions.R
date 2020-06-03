@@ -1,10 +1,8 @@
 # Generate Starting Matrices
 
 init_matrix <- function(iterations, herd_length) {
-  
   temp_matrix <- matrix(0, iterations, herd_length)
   return(temp_matrix)
-  
 }
 
 # Loop over state 
@@ -29,8 +27,10 @@ infer_prior <- function(decision_matrix, prior, generation) {
     decision_matrix <- matrix(decision_matrix)
   }
   
-  if (memory_length != FALSE && memory_length < generation) {
+  if (memory_length != FALSE) {
+    if(memory_length < generation) {
     decision_matrix <- substr(decision_matrix, generation - memory_length + 1, generation)
+    }
   }
   
   prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
