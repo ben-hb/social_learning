@@ -19,7 +19,7 @@ In particular, this tool is used to explore:
 3. Herding accuracy 
 4. Limited observation 
 5. Orderless observation 
-6. Asymmetric signal predictiveness 
+6. Asymmetric signal strength 
 
 **Technical**
 
