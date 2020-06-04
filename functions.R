@@ -60,8 +60,8 @@ infer_if_a <- function(prior) {
 infer_if_b <- function(prior) {
   posterior_with_signal_b <- ifelse(prior == 1, 1,
                                     ifelse(prior == 0, 0,
-                                           (1 - (1 - eta) - alpha * (1 - eta)) * prior / 
-                                             (((1 - (1 - eta) - alpha * (1 - eta)) * prior) + beta * (1 - eta) * (1 - prior))))
+                                           (1 - eta - alpha * (1 - eta)) * prior / 
+                                             (((1 - eta - alpha * (1 - eta)) * prior) + beta * (1 - eta) * (1 - prior))))
   
   return(posterior_with_signal_b)
 }
