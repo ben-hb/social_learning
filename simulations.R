@@ -20,6 +20,15 @@
 # iterations is the number of simulated herds that an agent runs to determine
 # the relative frequency of the action sequence before them in either state
 
+# Agents have two choices of actions: a and b 
+
+# They take action a iff P(state = A | action sequence, private signal) > 0.5
+
+# They take action b iff P(state = A | action sequence, private signal) < 0.5
+
+# They randomize with symmetric probability between actions a and b iff: 
+# P(state = A | action sequence, private signal) = 0.5
+
 temp_NAs <- rep(NA, times = length(alpha_range) * length(beta_range))
 
 correct_herd_rate <- matrix(data = NA, nrow = length(beta_range), ncol = length(alpha_range))
@@ -33,9 +42,9 @@ row.names(correct_herd_rate_b) <- beta_range
 colnames(correct_herd_rate_a) <- alpha_range
 colnames(correct_herd_rate_b) <- alpha_range
 
-for (beta in beta_range) {
-
-for (alpha in alpha_range) {
+# for (beta in beta_range) {
+# 
+# for (alpha in alpha_range) {
 
 # Generates vectors of names of matrices for loops
 
@@ -107,6 +116,16 @@ posterior_with_signal_b_a <- infer_if_b(pi)
 posterior_with_signal_a_b <- infer_if_a(pi)
 posterior_with_signal_b_b <- infer_if_b(pi)
 
+# Warn if posterior out of bounds 
+
+if (posterior_with_signal_a_a > 1 || posterior_with_signal_a_b > 1 || posterior_with_signal_b_a > 1|| posterior_with_signal_b_b > 1) {
+  print("Terminal error: posterior belief greater than 1")
+}
+
+if (posterior_with_signal_a_a < 0 || posterior_with_signal_a_b < 0 || posterior_with_signal_b_a < 0 || posterior_with_signal_b_b < 0) {
+  print("Terminal error: posterior belief less than 0")
+}
+
 # Generate posteriors from action posterior matrix with signal
 
 posterior_matrix_a[, 1] <- infer_on_signal(signal_matrix_a, pi, posterior_with_signal_a_a,
@@ -124,14 +143,9 @@ start_time <- Sys.time()
 
 for (generation in 1:herd_length) {
   
-  # Begin generation timer 
-  
-  # run_time_matrix[generation, 1] <- generation
-  # run_time_matrix[generation, 2] <- Sys.time()
-  
   # Status report
   print(paste0("Simulating generation #", generation))
-  
+
   # Decide
   
   temp_decision_a <- decide(posterior_matrix_a[, generation], signal_matrix_a[, generation])
@@ -162,9 +176,11 @@ for (generation in 1:herd_length) {
     cat_decision_matrix_b <- matrix(cat_decision_matrix_b)
   }
   
-  if (memory_length != FALSE && memory_length < generation) {
-    cat_decision_matrix_a <- substr(cat_decision_matrix_a, generation - memory_length + 1, generation)
-    cat_decision_matrix_b <- substr(cat_decision_matrix_b, generation - memory_length + 1, generation)
+  if (memory_length != FALSE) {
+    if(memory_length < generation) {
+      cat_decision_matrix_a <- substr(cat_decision_matrix_a, generation - memory_length + 1, generation)
+      cat_decision_matrix_b <- substr(cat_decision_matrix_b, generation - memory_length + 1, generation) 
+    }
   }
   
   # Generate decision summary data frames
@@ -219,9 +235,9 @@ for (generation in 1:herd_length) {
   }
 }
 
-}
-
-}
+# }
+# 
+# }
 
 end_time <- Sys.time()
 print(paste0("Run time for ", iterations, " iterations and a herd length of ", herd_length, ": ", round(end_time - start_time, 3)))
