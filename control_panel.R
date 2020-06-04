@@ -1,19 +1,15 @@
 remove(list = ls())
 options(mc.cores = parallel::detectCores())
 
-# Load functions 
-
-source("functions.R")
-
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 100000
-herd_length <- 200
-eta <- 0.5
+iterations <- 10000000
+herd_length <- 30
+eta <- 0.3
 alpha <- 0.6
-beta <- 0.6
-pi <- 0.4
+beta <- 0.7
+pi <- 0.45
 states <- c("a", "b") 
 
 # Warn if alpha and beta don't satisfy condition that: 
@@ -31,7 +27,7 @@ if (beta < 0.5) {
 # if FALSE, agents observe all actions before them 
 # if an integer, each agent only observes the last n actions
 
-memory_length <- 3
+memory_length <- 4
 
 # Should order be considered?
 
@@ -39,12 +35,18 @@ order <- TRUE
 
 # Parameter ranges
 
-alpha_range <- c(seq(from = 0.5, to = 0.9, by = 0.05),
-                 seq(from = 0.91, to = 0.99, by = 0.01))
+alpha_range <- c(seq(from = 0.5, to = 0.9, by = 0.05), seq(from = 0.91, to = 0.99, by = 0.01))
 
-beta_range <- c(seq(from = 0.5, to = 0.9, by = 0.05),
-                seq(from = 0.91, to = 0.99, by = 0.01))
+beta_range <- c(seq(from = 0.5, to = 0.9, by = 0.05), seq(from = 0.91, to = 0.99, by = 0.01))
+
+# Load functions 
+
+source("functions.R", local = TRUE)
 
 # Run simulations 
 
-source("simulations.R")
+source("simulations.R", local = TRUE)
+
+# Output results 
+
+source("output_simulations.R", local = TRUE)
