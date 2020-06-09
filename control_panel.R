@@ -4,13 +4,14 @@ options(mc.cores = parallel::detectCores())
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 10000000
-herd_length <- 30
-eta <- 0.3
-alpha <- 0.6
-beta <- 0.7
-pi <- 0.45
+iterations <- 1000000
+herd_length <- 200
+eta <- 0
+alpha <- 0.8
+beta <- 0.8
+pi <- 0.7
 states <- c("a", "b") 
+pis <- c(0.49, 0.5, 0.51)
 
 # Warn if alpha and beta don't satisfy condition that: 
 # P(signal = a | state = A) >= P(signal = b | state = A) and 
@@ -43,6 +44,8 @@ beta_range <- c(seq(from = 0.5, to = 0.9, by = 0.05), seq(from = 0.91, to = 0.99
 
 source("functions.R", local = TRUE)
 
+# for (pi in pis){
+
 # Run simulations 
 
 source("simulations.R", local = TRUE)
@@ -50,3 +53,4 @@ source("simulations.R", local = TRUE)
 # Output results 
 
 source("output_simulations.R", local = TRUE)
+# }
