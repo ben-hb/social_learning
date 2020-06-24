@@ -4,7 +4,7 @@ options(mc.cores = parallel::detectCores())
 # Set parameters
 
 matrix_types <- c("posterior")
-iterations <- 1000000
+iterations <- 10000
 herd_length <- 200
 eta <- 0
 alpha <- 0.8
@@ -32,7 +32,7 @@ memory_length <- 4
 
 # Should order be considered?
 
-order <- TRUE
+order <- FALSE
 
 # Parameter ranges
 
