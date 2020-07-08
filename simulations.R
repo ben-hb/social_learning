@@ -139,6 +139,10 @@ posterior_matrix_b[, 1] <- infer_on_signal(signal_matrix_b, pi, posterior_with_s
 herd_tracker_a_vectors[[1]] <- track_herd(posterior_with_signal_a_a, posterior_with_signal_b_a, 1)
 herd_tracker_b_vectors[[1]] <- track_herd(posterior_with_signal_a_b, posterior_with_signal_b_b, 1)
 
+# Detach herded iterations 
+
+# Fill in 
+
 start_time <- Sys.time()
 
 for (generation in 1:herd_length) {
@@ -200,8 +204,8 @@ for (generation in 1:herd_length) {
   
   # Calculate belief that state = A before observing new signal 
   
-  prior_a <- infer_prior(decision_matrix_a, action_posterior_matrices[[generation]], generation)
-  prior_b <- infer_prior(decision_matrix_b, action_posterior_matrices[[generation]], generation)
+  prior_a <- infer_prior(decision_matrix_a, action_posterior_matrices[[generation]], generation, decision_summary_a_dfs[[1]], decision_summary_b_dfs[[1]], pi)
+  prior_b <- infer_prior(decision_matrix_b, action_posterior_matrices[[generation]], generation, decision_summary_b_dfs[[1]], decision_summary_b_dfs[[1]], pi)
   
   # Calculate beliefs conditional on receiving signal a or b 
   

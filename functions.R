@@ -19,7 +19,7 @@ gen_signals <- function(signal_matrix, eta, alpha, beta, state) {
 
 # Infer belief state = A before observing new signal 
 
-infer_prior <- function(decision_matrix, prior, generation) {
+infer_prior <- function(decision_matrix, prior, generation, decision_summary_a, decision_summary_b, pi) {
   decision_matrix <- matrix(apply(format(decision_matrix), 1, paste, collapse = ""), iterations, 1)
   
   if (order == FALSE) {
@@ -33,9 +33,51 @@ infer_prior <- function(decision_matrix, prior, generation) {
     }
   }
   
-  prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
+  if (prop_naive > 0) {
+    
+    num_rational <- ceiling(iterations * prop_rational)
+    num_naive <- floor(iterations * prop_naive)
+    
+    if (prop_rational > 0) {
+      naive_decision_matrix <- decision_matrix[1:num_naive]
+      rational_decision_matrix <- decision_matrix[(num_naive + 1):iterations]
+    }
+    
+    else {
+      naive_decision_matrix <- decision_matrix
+    }
+    
+    # P(first agent takes action a | state = A)
+    paa <- decision_summary_a[[1, 2]] / iterations
+    pba <- decision_summary_a[[2, 2]] / iterations
+    pbb <- decision_summary_b[[2, 2]] / iterations
+    pab <- decision_summary_b[[1, 2]] / iterations
+    
+    # Count number of a and b in each action sequence 
+    num_a <- lengths(regmatches(naive_decision_matrix, gregexpr("a", naive_decision_matrix)))
+    num_b <- lengths(regmatches(naive_decision_matrix, gregexpr("b", naive_decision_matrix)))
+    
+    naive_prior <- paa^num_a * pba^num_b * pi / ((paa^num_a * pba^num_b * pi) + (pab^num_a * pbb^num_b * (1 - pi)))
+    
+    if (prop_rational > 0) {
+      rational_prior <- as.numeric(prior[c(match(rational_decision_matrix, prior)), 4])
+      prior <- rbind(matrix(naive_prior), matrix(rational_prior))
+    }
+    
+    else {
+      prior <- naive_prior
+    }
+    
+  }
+  
+  else {
+    prior <- as.numeric(prior[c(match(decision_matrix, prior)), 4])
+  }
+  
   return(prior)
 }
+
+# Infer belief state = A for a naive agent who does not consider the correlation between actions 
 
 # Infer belief state = A if signal = a
 

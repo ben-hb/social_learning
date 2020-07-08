@@ -5,13 +5,22 @@ options(mc.cores = parallel::detectCores())
 
 matrix_types <- c("posterior")
 iterations <- 10000
-herd_length <- 200
+herd_length <- 30
 eta <- 0
-alpha <- 0.8
-beta <- 0.8
-pi <- 0.7
+alpha <- 0.6
+beta <- 0.6
+pi <- 0.6
 states <- c("a", "b") 
 pis <- c(0.49, 0.5, 0.51)
+
+prop_rational <- 0.7
+prop_naive <- 0.3
+
+# Warn if proportion of agent types don't sum to 1
+
+if (sum(prop_rational, prop_naive) != 1) {
+  print(paste("Caution: Agent proportions don't sum to 1"))
+}
 
 # Warn if alpha and beta don't satisfy condition that: 
 # P(signal = a | state = A) >= P(signal = b | state = A) and 
@@ -28,11 +37,11 @@ if (beta < 0.5) {
 # if FALSE, agents observe all actions before them 
 # if an integer, each agent only observes the last n actions
 
-memory_length <- 4
+memory_length <- FALSE
 
 # Should order be considered?
 
-order <- FALSE
+order <- TRUE
 
 # Parameter ranges
 

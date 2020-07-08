@@ -10,8 +10,8 @@ action_posterior_matrices <- action_posterior_matrices[lapply(action_posterior_m
 
 action_posterior_dfs <- list()
 Parameter <- c("Iterations", "P(null)", "Prior state = A", "Signal strength a", "Signal strength b", 
-              "P(signal = a | state = A)", "P(signal = b | state = B)",  "Memory length", "Order?")
-Value <- c(iterations, eta, pi, alpha, beta, alpha * (1 - eta), beta * (1 - eta), memory_length, as.character(order))
+              "P(signal = a | state = A)", "P(signal = b | state = B)",  "Memory length", "Order?", "Rational Prop", "Naive Prop")
+Value <- c(iterations, eta, pi, alpha, beta, alpha * (1 - eta), beta * (1 - eta), memory_length, as.character(order), prop_rational, prop_naive)
 blank <- rep(NA, length(Parameter))
 States <- c("State = A", "State = B", rep(NA, length(Parameter) - 2))
 PA <- c(alpha * (1 - eta), 1 - beta * (1 - eta) - eta, rep(NA, length(Parameter) - 2))
@@ -28,16 +28,15 @@ action_posterior_dfs[[1]] <- data.frame(Parameter, Value, blank, States, PA, PB,
          "_" = blank)
 
 for (i in 1:length(action_posterior_matrices)) {
+  temp <- NULL
   temp <- action_posterior_matrices[[i]] %>% 
     data.frame() %>%
     mutate(posterior = as.numeric(as.character(posterior))) %>% 
-    mutate("FreqA" = decision_summary_a_dfs[[i]]$Freq,
-          "FreqB" = decision_summary_b_dfs[[i]]$Freq,
-          "Herd" = ifelse(infer_if_b(posterior) > 0.5, "A",
+    rename("FreqA" = Freq.x, 
+           "FreqB" = Freq.y) %>% 
+    mutate("Herd" = ifelse(infer_if_b(posterior) > 0.5, "A",
                           ifelse(infer_if_a(posterior) < 0.5, "B", "No"))) %>% 
     rename("Action Sequence" = cat_decision_matrix_a,
-           "Frequency | state = A" = Freq.x,
-           "Frequency | state = B" = Freq.y,
            "P(state = A)" = posterior) 
   temp <- temp %>% 
     mutate(FreqA = as.numeric(as.character(FreqA)),
@@ -72,7 +71,8 @@ for (i in 1:length(action_posterior_matrices)) {
 
 names(action_posterior_dfs) <- sheets
 
-write_xlsx(action_posterior_dfs, paste0("sample\ simulation/action_posterior_dfs_", pi, "_", alpha, "_", beta, "_", order, "_", memory_length, ".xlsx"))
+write_xlsx(action_posterior_dfs, paste0("sample\ simulation/action_posterior_dfs_", pi, "_", alpha, "_", beta, "_", order, "_", 
+                                        memory_length, "_", prop_rational, ".xlsx"))
 
 # For n = 1, visualize changes in P(A | a) and P(A | b) across generations 
 
