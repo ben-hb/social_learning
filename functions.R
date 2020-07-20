@@ -54,8 +54,8 @@ infer_prior <- function(decision_matrix, prior, generation, decision_summary_a, 
     pab <- decision_summary_b[[1, 2]] / iterations
     
     # Count number of a and b in each action sequence 
-    num_a <- lengths(regmatches(naive_decision_matrix, gregexpr("a", naive_decision_matrix)))
-    num_b <- lengths(regmatches(naive_decision_matrix, gregexpr("b", naive_decision_matrix)))
+    num_a <- lengths(regmatches(naive_decision_matrix, gregexpr("A", naive_decision_matrix)))
+    num_b <- lengths(regmatches(naive_decision_matrix, gregexpr("B", naive_decision_matrix)))
     
     naive_prior <- paa^num_a * pba^num_b * pi / ((paa^num_a * pba^num_b * pi) + (pab^num_a * pbb^num_b * (1 - pi)))
     
@@ -116,6 +116,13 @@ infer_on_signal <- function(signal_matrix, prior, posterior_with_signal_a, poste
                              prior))
   return(posterior)
 }
+
+#' Check which iterations have herded
+#'
+#' If the last action was X and a signal of x would cause the next agent to take
+#' an action other than X, the iteration has herded
+#' 
+#' Else, the iteration has not herded
 
 track_herd <- function(posterior_with_signal_a, posterior_with_signal_b, generation) {
   

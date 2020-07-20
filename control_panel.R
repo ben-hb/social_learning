@@ -1,6 +1,18 @@
 remove(list = ls())
 options(mc.cores = parallel::detectCores())
 
+library(usethis)
+
+use_description(fields = list(
+  "Package" = "socialLearning"),
+  check_name = FALSE)
+
+library(roxygen2)
+
+roxygenise()
+
+devtools::load_all()
+
 # Set parameters
 
 matrix_types <- c("posterior")
@@ -13,8 +25,8 @@ pi <- 0.6
 states <- c("a", "b") 
 pis <- c(0.49, 0.5, 0.51)
 
-prop_rational <- 0.7
-prop_naive <- 0.3
+prop_rational <- 0
+prop_naive <- 1
 
 # Warn if proportion of agent types don't sum to 1
 
